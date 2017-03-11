@@ -34,11 +34,13 @@
 				this.addEventListener('load', (event) => {
 					jsons[this._key] = JSON.parse(this.responseText);	// All of xhr requests to be stored are JSON.
 
-					// Updates the internal quiz data.
-					const contents = jsons.study;
-					const courses = Object.keys(jsons).filter(key => /^\d+$/.test(key)).map(key => jsons[key]);
-					if (contents && courses) {
-						sentences = makeSentences(contents, courses);
+					if (isDictationApp()) {
+						// Updates the internal quiz data.
+						const contents = jsons.study;
+						const courses = Object.keys(jsons).filter(key => /^\d+$/.test(key)).map(key => jsons[key]);
+						if (contents && courses) {
+							sentences = makeSentences(contents, courses);
+						}
 					}
 				});
 			}
@@ -89,7 +91,6 @@
 		};
 	})();
 
-
 	const displayIncorrect = (() => {
 		// Makes a span element to display an incorrect input letter.
 		const span = document.createElement('span');
@@ -134,6 +135,9 @@
 		};
 	})();
 
+	function isDictationApp() {
+		return (location.href.includes('/sentence_trainer'));
+	}
 
 	function isTypingMode() {
 		return (document.getElementById('dictation_quiz_screen').offsetHeight > 0 && !document.querySelector('.paused'));

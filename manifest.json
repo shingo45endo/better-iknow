@@ -6,7 +6,7 @@
 	"description": "Makes iKnow dictation app easier to type. Adds some improvements.",
 
 	"content_scripts": [{
-		"matches": ["http://iknow.jp/apps/*/sentence_trainer"],
+		"matches": ["http://iknow.jp/apps/*"],
 		"js": [
 			"content_script.js"
 		]
