@@ -9,7 +9,8 @@
 		"matches": ["http://iknow.jp/apps/*"],
 		"js": [
 			"content_script.js"
-		]
+		],
+		"run_at": "document_end"
 	}],
 	"web_accessible_resources": [
 		"embeded_script.js"
