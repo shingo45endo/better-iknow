@@ -27,7 +27,7 @@
 		XMLHttpRequest.prototype.open = function(method, url, async) {
 			// If the URL is a target of capturing, memorizes its URL.
 			if (isTargetUrl(url)) {
-				const canonicaliUrl = canonicalizeUtl(url);
+				const canonicaliUrl = canonicalizeUrl(url);
 				targetUrls[canonicaliUrl] = true;
 			}
 
@@ -40,7 +40,7 @@
 		XMLHttpRequest.prototype.send = function(data) {
 			// If the XHR is a target of capturing, sends its response to the content script via an iframe when the XHR succeeded.
 			this.addEventListener('load', (event) => {
-				const canonicaliUrl = canonicalizeUtl(this.responseURL);
+				const canonicaliUrl = canonicalizeUrl(this.responseURL);
 				if (targetUrls[canonicaliUrl]) {
 					iframe.contentWindow.postMessage(JSON.stringify({
 						url:  canonicaliUrl,
@@ -54,7 +54,7 @@
 		};
 	})(XMLHttpRequest.prototype.send);
 
-	function canonicalizeUtl(url) {
+	function canonicalizeUrl(url) {
 		return (url.indexOf('http') === 0) ? url : location.origin + url;
 	}
 })();
