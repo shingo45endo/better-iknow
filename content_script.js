@@ -39,7 +39,7 @@ let xhrResponses = {};
 
 	// Appends the script.
 	const script = document.createElement('script');
-	script.src = chrome.extension.getURL('/embedded_script.js');
+	script.src = chrome.extension.getURL('/xhr_captor.js');
 	script.dataset.iframeParent = iframeParent;
 	script.dataset.iframeId     = iframeId;
 	script.dataset.matchUrls    = matchUrls;
