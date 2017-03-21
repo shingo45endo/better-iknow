@@ -2,7 +2,7 @@
 
 // RegExps for URLs to be captured
 const RE_COURSES  = /\/api\/v2\/goals\/\d+\?/;
-const RE_CONTENTS = /\/api\/v2\/.*?\/study\?/;
+const RE_QUIZZES  = /\/api\/v2\/.*?\/study\?/;
 const RE_SETTINGS = /\/api\/v2\/settings\?/;
 
 let xhrResponses = {};
@@ -12,7 +12,7 @@ let xhrResponses = {};
 	// Custom data attributes to communicate with the embedded script.
 	const iframeParent = 'body';
 	const iframeId     = `__better_iknow_messaging_${Date.now()}__`;
-	const matchUrls    = JSON.stringify([RE_COURSES, RE_CONTENTS, RE_SETTINGS].map((re) => re.source));
+	const matchUrls    = JSON.stringify([RE_COURSES, RE_QUIZZES, RE_SETTINGS].map((re) => re.source));
 
 	// Waits for iframe injection by the embedded script.
 	const iframeObserver = new MutationObserver((records) => {
@@ -48,7 +48,7 @@ let xhrResponses = {};
 
 // Dictation
 {
-	let sentences = null;
+	let contents = null;
 	let settings = {apps: {effect_volume: 1.0}};
 
 	// Waits for displaying the dictation quiz screen.
@@ -64,24 +64,24 @@ let xhrResponses = {};
 
 	/**
 	 *	Prepares the internal states for dictation.
-	 *	Makes the sentence data from XHR data for key input check, gets the settings data for effect volume control.
+	 *	Makes the contents data from XHR data for key input check, gets the settings data for effect volume control.
 	 */
 	function prepareForDictation() {
-		// Clears the sentence data.
-		sentences = null;
+		// Clears the contents data.
+		contents = null;
 
-		// Gets contents and courses data from the stored XHR data.
+		// Gets quizzes and courses data from the stored XHR data.
 		const urls = Object.keys(xhrResponses);
-		const contentIndex = urls.findIndex((url) => RE_CONTENTS.test(url));
-		const contents = (contentIndex !== -1) ? JSON.parse(xhrResponses[urls[contentIndex]]) : null;
+		const quizIndex = urls.findIndex((url) => RE_QUIZZES.test(url));
+		const quizzes = (quizIndex !== -1) ? JSON.parse(xhrResponses[urls[quizIndex]]) : null;
 		const courses = urls.filter((url) => RE_COURSES.test(url)).map((url) => JSON.parse(xhrResponses[url]));
 
-		// Makes sentence data from contents and courses data.
-		if (contents && courses) {
-			sentences = makeSentences(contents, courses);
+		// Makes contents data from quizzes and courses data.
+		if (quizzes && courses) {
+			contents = makeContents(quizzes, courses);
 		}
-		if (!sentences) {
-			console.log('ERROR: Cannot make sentence data')
+		if (!contents) {
+			console.log('ERROR: Cannot make contents data')
 		}
 
 		// Gets settings data from the stored XHR data.
@@ -92,14 +92,14 @@ let xhrResponses = {};
 	}
 
 	/**
-	 *	Makes sentences from XHR data.
+	 *	Makes contents from XHR data.
 	 */
-	function makeSentences(contents, courses) {
-		if (!contents || !courses) {
+	function makeContents(quizzes, courses) {
+		if (!quizzes || !courses) {
 			return null;
 		}
 
-		return contents.map((content) => {
+		return quizzes.map((content) => {
 			const course = courses.find((course) => (content.goal_id === course.id));
 			if (!course || !course.goal_items) {
 				console.log(`ERROR: goal_id (${content.goal_id}) is not found in courses (%o)`, courses);
@@ -118,7 +118,10 @@ let xhrResponses = {};
 				return null;
 			}
 
-			return sentence.cue.text.replace(/<("[^"]*"|'[^']*'|[^'">])*>/g, '');
+			return {
+				sentence: sentence.cue.text.replace(/<("[^"]*"|'[^']*'|[^'">])*>/g, ''),
+				soundUrl: sentence.sound,
+			};
 		});
 	}
 
@@ -203,8 +206,8 @@ let xhrResponses = {};
 			return;
 		}
 
-		if (!sentences || sentences.length === 0) {
-			console.log('ERROR: Cannot get sentences');
+		if (!contents || contents.length === 0) {
+			console.log('ERROR: Cannot get contents');
 			return;
 		}
 
@@ -220,7 +223,7 @@ let xhrResponses = {};
 			return;
 		}
 
-		const sentence = sentences[index];
+		const sentence = contents[index].sentence;
 		if (event.key.toLowerCase() !== sentence.charAt(cursorPos).toLowerCase()) {
 			playIncorrect();
 			displayIncorrect(event.key);
