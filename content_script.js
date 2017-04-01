@@ -141,8 +141,8 @@ const VoicePlayer = (() => {
 		setVolume: (volume) => {
 			audio.volume = volume;
 		},
-		play: () => {
-			audio.currentTime = 0.0;
+		play: (sec) => {
+			audio.currentTime = sec || 0.0;
 			audio.play();
 		},
 		rewind: (sec) => {
@@ -153,6 +153,9 @@ const VoicePlayer = (() => {
 			audio.currentTime += sec;
 			audio.play();
 		},
+		getDuration: () => {
+			return audio.duration;
+		}
 	};
 })();
 
@@ -275,6 +278,10 @@ const displayIncorrect = (() => {
  *	Handles key events and stops its propagation to the Dictation app if necessary.
  */
 window.addEventListener('keydown', (() => {
+	let currentSentence;
+	let currentPos;
+	let sentenceWeights = {};
+
 	const keyHandlers = {
 		' ': () => {
 			VoicePlayer.play();
@@ -286,10 +293,57 @@ window.addEventListener('keydown', (() => {
 			VoicePlayer.forward(1.0);
 		},
 		'Backspace': () => {
-			// TODO: implement
+			const duration = VoicePlayer.getDuration();
+			if (duration <= 0.0) {
+				return;
+			}
+			const weights = sentenceWeights[currentSentence];
+			if (!weights) {
+				return;
+			}
+			const sec = Math.max(-1.0 + duration * weights[currentPos] / weights[weights.length - 1], 0);
+			VoicePlayer.play(sec);
 		},
 		'Enter': () => {},
 	};
+
+	const weightsTable = [
+		{pattern: /\s/,	weight: 2.5},
+		{pattern: /,/,	weight: 1.5},
+		{pattern: /[aiueo]/i,	weight: 2.0},
+		{pattern: /.*/,	weight: 1.0},
+	];
+
+	function updateCurrentState() {
+		if (!contents || contents.length === 0) {
+			console.log('ERROR: Cannot get contents');
+			return;
+		}
+
+		const index = getCurrentSetenceIndex();
+		if (index < 0) {
+			console.log('ERROR: Cannot get index');
+			return;
+		}
+
+		currentSentence = contents[index].sentence;
+		currentPos = getCurrentCursorPos();
+
+		if (!sentenceWeights[currentSentence]) {
+			const weights = currentSentence.split('').map((ch) => {
+				const elem = weightsTable.find((elem) => {return elem.pattern.test(ch);});
+				return (elem) ? elem.weight : 0.0;
+			});
+
+			sentenceWeights[currentSentence] = weights.map((weight, index, weights) => {
+				let sum = 0.0;
+				for (let i = 0; i < index; i++) {
+					sum += weights[i];
+				}
+				return sum;
+			});
+		}
+	}
 
 	function handleSpecialKeys(event) {
 		if (keyHandlers[event.key]) {
@@ -305,6 +359,8 @@ window.addEventListener('keydown', (() => {
 			return;
 		}
 
+		updateCurrentState();
+
 		if (handleSpecialKeys(event)) {
 			event.preventDefault();
 			event.stopPropagation();
@@ -315,25 +371,7 @@ window.addEventListener('keydown', (() => {
 			return;
 		}
 
-		if (!contents || contents.length === 0) {
-			console.log('ERROR: Cannot get contents');
-			return;
-		}
-
-		const index = getCurrentSetenceIndex();
-		if (index < 0) {
-			console.log('ERROR: Cannot get index');
-			return;
-		}
-
-		const cursorPos = getCurrentCursorPos();
-		if (cursorPos < 0) {
-			console.log('ERROR: Cannot get cursorPos');
-			return;
-		}
-
-		const sentence = contents[index].sentence;
-		if (event.key.toLowerCase() !== sentence.charAt(cursorPos).toLowerCase()) {
+		if (event.key.toLowerCase() !== currentSentence.charAt(currentPos).toLowerCase()) {
 			playIncorrect();
 			displayIncorrect(event.key);
 
