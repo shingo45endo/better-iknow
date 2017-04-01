@@ -339,17 +339,16 @@ window.addEventListener('keydown', (() => {
 
 			event.preventDefault();
 			event.stopPropagation();
-			return;
 
 		} else {
 			displayIncorrect('');
-		}
 
-		setTimeout(() => {
-			if (isSentenceCompleted()) {
-				clickEnter();
-			}
-		}, 100);
+			setTimeout(() => {
+				if (isSentenceCompleted()) {
+					clickEnter();
+				}
+			}, 100);
+		}
 	};
 })(), true);
 
