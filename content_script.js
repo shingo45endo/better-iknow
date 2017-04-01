@@ -62,8 +62,9 @@ const divObserver = new MutationObserver((records) => {
 });
 divObserver.observe(document.getElementById('dictation_quiz_screen'), {attributes: true});
 
-let xhrResponses = {};
 let contents = null;
+let quizzes = [];
+let courses = {};
 let settings = {
 	apps: {
 		content_volume: 1.0,
@@ -75,23 +76,35 @@ let settings = {
  *	Handles XHR and stores them.
  */
 function XhrHandler(url, text) {
-	if (RE_SETTINGS.test(url)) {
+	if (RE_QUIZZES.test(url)) {
+		// Stores quiz data.
+		quizzes = JSON.parse(text);
+
+	} else if (RE_COURSES.test(url)) {
+		// Stores course data.
+		const key = url.replace(/\?.*$/, '');
+		courses[key] = JSON.parse(text);
+
+	} else if (RE_SETTINGS.test(url)) {
+		// Updates the settings data.
 		const newSettings = JSON.parse(text);
 		if (newSettings.apps) {
 			settings.apps = Object.assign(settings.apps || {}, newSettings.apps);
 		}
 
+		// Sets the volume of sentences.
 		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
+
+		// XHR for settings occurs when the settings dialog is closed with "Save" button.
+		// At this time, iKnow app automatically plays the current content voice with new settings value.
+		// To prevent it, mutes the original sound player of iKnow app.
 		if (isTypingMode()) {
 			SoundPlayer.mute();
 		}
 
-		return;
+	} else {
+		console.log('WARNING: Unexpected XHR (%s)', url);
 	}
-
-	// Stores the XHR response data.
-	const key = url.replace(/\?.*$/, '?');
-	xhrResponses[key] = text;
 }
 
 // Controls the original Flash sound player.
@@ -145,22 +158,11 @@ const VoicePlayer = (() => {
 
 /**
  *	Prepares the internal states for dictation.
- *	Makes the contents data from XHR data for key input check, gets the settings data for effect volume control.
+ *	Makes the contents data from XHR data for key input check, sets the voice data of the current sentence.
  */
 function prepareForDictation() {
-	// Clears the contents data.
-	contents = null;
-
-	// Gets quizzes and courses data from the stored XHR data.
-	const urls = Object.keys(xhrResponses);
-	const quizIndex = urls.findIndex((url) => RE_QUIZZES.test(url));
-	const quizzes = (quizIndex !== -1) ? JSON.parse(xhrResponses[urls[quizIndex]]) : null;
-	const courses = urls.filter((url) => RE_COURSES.test(url)).map((url) => JSON.parse(xhrResponses[url]));
-
 	// Makes contents data from quizzes and courses data.
-	if (quizzes && courses) {
-		contents = makeContents(quizzes, courses);
-	}
+	contents = makeContents(quizzes, Object.keys(courses).map((key) => courses[key]));
 	if (!contents) {
 		console.log('ERROR: Cannot make contents data')
 	}
