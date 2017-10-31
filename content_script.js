@@ -45,7 +45,7 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 	iframeParent: 'body',
 	iframeId:     `__better_iknow_messaging_${Date.now()}__`,
 	matchUrls:    JSON.stringify([RE_COURSES, RE_QUIZZES, RE_SETTINGS].map((re) => re.source)),
-	origin:       'http://iknow.jp',
+	origin:       'https://iknow.jp',
 });
 
 // Waits for displaying the dictation quiz screen.
