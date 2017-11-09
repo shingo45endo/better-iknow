@@ -53,10 +53,8 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 const divObserver = new MutationObserver((records) => {
 	records.filter((record) => (record.type === 'attributes' && record.attributeName === 'class')).forEach((record) => {
 		if (record.target.classList.contains('current_screen')) {
-			SoundPlayer.mute();
+			SoundPlayer.stopSounds();
 			prepareForDictation();
-		} else {
-			SoundPlayer.unmute();
 		}
 	});
 });
@@ -97,9 +95,10 @@ function XhrHandler(url, text) {
 
 		// XHR for settings occurs when the settings dialog is closed with "Save" button.
 		// At this time, iKnow app automatically plays the current content voice with new settings value.
-		// To prevent it, mutes the original sound player of iKnow app.
+		// To prevent it, stops the original sound player of iKnow app and plays the sentences from this extension.
 		if (isTypingMode()) {
-			SoundPlayer.mute();
+			SoundPlayer.stopSounds();
+			VoicePlayer.play();
 		}
 
 	} else {
@@ -109,22 +108,42 @@ function XhrHandler(url, text) {
 
 // Controls the original Flash sound player.
 const SoundPlayer = (() => {
-	const player = document.getElementById('sound_player');
+	const id = `__better_iknow_iframe_${Date.now()}__`;
 
-	return {
-		mute: () => {
-			// setVolume() in sound_player.swf ignores falsy value. (it doesn't accept 0)
-			// And the actual volume (v: [0.0, 1.0]) is caliculated as below:
-			//   v = Math.round(volume) / 10;
-			// Therefore, to mute it, needs to set volume in the interval (0, 0.5).
-			player.stopSounds();
-			player.setVolume(0.4);
-		},
-		unmute: () => {
-			const contentVolume = (settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0;
-			player.setVolume(10 * contentVolume);
-		},
-	};
+	// Adds an iframe for messaging.
+	const iframe = document.createElement('iframe');
+	iframe.style.width   = '1px';
+	iframe.style.height  = '1px';
+	iframe.style.display = 'none';
+	iframe.id = id;
+	document.querySelector('body').appendChild(iframe);
+
+	// Adds a script to invoke a member function of '$' from this extension.
+	const script = document.createElement('script');
+	script.innerHTML = `
+		// Invokes a member function of '$'.
+		(() => {
+			const iframe = document.getElementById('${id}');
+			iframe.contentWindow.addEventListener('message', (event) => {
+				if (event.origin !== location.origin) {
+					return;
+				}
+
+				let args = JSON.parse(event.data);
+				const funcName = args.shift();	// The first parameter is for the function name.
+				($[funcName])(...args);
+			}, false);
+		})();`;
+	document.querySelector('body').appendChild(script);
+
+	const funcs = {};
+	['playSound', 'stopSounds', 'setVolume'].forEach((funcName) => {
+		funcs[funcName] = function(...args) {
+			document.getElementById(id).contentWindow.postMessage(JSON.stringify([funcName, ...args]), location.origin);
+		}
+	});
+
+	return funcs;
 })();
 
 // Controls the own voice player.
