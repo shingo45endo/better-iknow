@@ -60,6 +60,33 @@ const divObserver = new MutationObserver((records) => {
 });
 divObserver.observe(document.getElementById('dictation_quiz_screen'), {attributes: true});
 
+// Waits for fading out the modal dialog box.
+const [settingsObserver, pauseObserver] = [0, 0].map(() => new MutationObserver((records) => {
+	records.filter((record) => (record.type === 'attributes' && record.attributeName === 'style')).forEach((record) => {
+		if (record.target.style.display === 'none') {
+			if (isTypingMode()) {
+				SoundPlayer.stopSounds();
+				VoicePlayer.play();
+			}
+		}
+	});
+}));
+
+// Waits for adding the modal dialog boxes.
+const dialogObserver = new MutationObserver((records) => {
+	records.filter((record) => (record.type === 'childList')).forEach((record) => {
+		Array.prototype.forEach.call(record.addedNodes, (node) => {
+			if (node.querySelector('.settings-modal')) {
+				settingsObserver.observe(node, {attributes: true});
+			}
+			if (node.querySelector('.pause-modal')) {
+				pauseObserver.observe(node, {attributes: true});
+			}
+		});
+	});
+});
+dialogObserver.observe(document.querySelector('body'), {childList: true});
+
 let contents = null;
 let quizzes = [];
 let courses = {};
