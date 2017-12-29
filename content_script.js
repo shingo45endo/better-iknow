@@ -26,7 +26,7 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 					}
 
 					const data = JSON.parse(event.data);
-					callback(data.url, data.text)
+					callback(data.url, data.text);
 				});
 			});
 		});
@@ -167,7 +167,7 @@ const SoundPlayer = (() => {
 	['playSound', 'stopSounds', 'setVolume'].forEach((funcName) => {
 		funcs[funcName] = function(...args) {
 			document.getElementById(id).contentWindow.postMessage(JSON.stringify([funcName, ...args]), location.origin);
-		}
+		};
 	});
 
 	return funcs;
@@ -213,7 +213,7 @@ function prepareForDictation() {
 	// Makes contents data from quizzes and courses data.
 	contents = makeContents(quizzes, Object.keys(courses).map((key) => courses[key]));
 	if (!contents) {
-		console.log('ERROR: Cannot make contents data')
+		console.log('ERROR: Cannot make contents data');
 	}
 
 	// Sets voice properties.
@@ -301,7 +301,7 @@ const displayIncorrect = (() => {
 		span.style = getComputedStyle(cursor).cssText;
 
 		// Sets the CSS properties about color.
-		['color', 'textFillColor', 'webkitTextFillColor'].forEach((prop) => {span.style[prop] = '#f33'});
+		['color', 'textFillColor', 'webkitTextFillColor'].forEach((prop) => {span.style[prop] = '#f33';});
 
 		// Sets the position of the incorrect letter same to the cursor.
 		const rect = cursor.getBoundingClientRect();
