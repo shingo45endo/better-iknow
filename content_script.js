@@ -298,7 +298,9 @@ const displayIncorrect = (() => {
 		}
 
 		// Copies all CSS properties as text from the cursor.
-		span.style = getComputedStyle(cursor).cssText;
+		const styles = getComputedStyle(cursor);
+		const cssText = styles.cssText || Array.prototype.reduce.call(styles, (txt, key) => {return txt + `${key}: ${styles.getPropertyValue(key)}; `;}, '');
+		span.style = cssText;
 
 		// Sets the CSS properties about color.
 		['color', 'textFillColor', 'webkitTextFillColor'].forEach((prop) => {span.style[prop] = '#f33';});
