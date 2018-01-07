@@ -48,44 +48,15 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 	origin:       'https://iknow.jp',
 });
 
-// Waits for displaying the dictation quiz screen.
-// TODO: Optimize the timing of the prepation for dictation.
+// Waits for displaying the dictation recall screen.
 const divObserver = new MutationObserver((records) => {
 	records.filter((record) => (record.type === 'attributes' && record.attributeName === 'class')).forEach((record) => {
 		if (record.target.classList.contains('current_screen')) {
-			SoundPlayer.stopSounds();
 			prepareForDictation();
 		}
 	});
 });
-divObserver.observe(document.getElementById('dictation_quiz_screen'), {attributes: true});
-
-// Waits for fading out the modal dialog box.
-const [settingsObserver, pauseObserver] = [0, 0].map(() => new MutationObserver((records) => {
-	records.filter((record) => (record.type === 'attributes' && record.attributeName === 'style')).forEach((record) => {
-		if (record.target.style.display === 'none') {
-			if (isTypingMode()) {
-				SoundPlayer.stopSounds();
-				VoicePlayer.play();
-			}
-		}
-	});
-}));
-
-// Waits for adding the modal dialog boxes.
-const dialogObserver = new MutationObserver((records) => {
-	records.filter((record) => (record.type === 'childList')).forEach((record) => {
-		Array.prototype.forEach.call(record.addedNodes, (node) => {
-			if (node.querySelector('.settings-modal')) {
-				settingsObserver.observe(node, {attributes: true});
-			}
-			if (node.querySelector('.pause-modal')) {
-				pauseObserver.observe(node, {attributes: true});
-			}
-		});
-	});
-});
-dialogObserver.observe(document.querySelector('body'), {childList: true});
+divObserver.observe(document.getElementById('dictation_recall_screen'), {attributes: true});
 
 let contents = null;
 let quizzes = [];
@@ -120,63 +91,43 @@ function XhrHandler(url, text) {
 		// Sets the volume of sentences.
 		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
 
-		// XHR for settings occurs when the settings dialog is closed with "Save" button.
-		// At this time, iKnow app automatically plays the current content voice with new settings value.
-		// To prevent it, stops the original sound player of iKnow app and plays the sentences from this extension.
-		if (isTypingMode()) {
-			SoundPlayer.stopSounds();
-			VoicePlayer.play();
-		}
-
 	} else {
 		console.log('WARNING: Unexpected XHR (%s)', url);
 	}
 }
 
-// Controls the original Flash sound player.
-const SoundPlayer = (() => {
-	const id = `__better_iknow_iframe_${Date.now()}__`;
-
-	// Adds an iframe for messaging.
-	const iframe = document.createElement('iframe');
-	iframe.style.width   = '1px';
-	iframe.style.height  = '1px';
-	iframe.style.display = 'none';
-	iframe.id = id;
-	document.querySelector('body').appendChild(iframe);
-
-	// Adds a script to invoke a member function of '$' from this extension.
-	const script = document.createElement('script');
-	script.innerHTML = `
-		// Invokes a member function of '$'.
-		(() => {
-			const iframe = document.getElementById('${id}');
-			iframe.contentWindow.addEventListener('message', (event) => {
-				if (event.origin !== location.origin) {
-					return;
-				}
-
-				let args = JSON.parse(event.data);
-				const funcName = args.shift();	// The first parameter is for the function name.
-				($[funcName])(...args);
-			}, false);
-		})();`;
-	document.querySelector('body').appendChild(script);
-
-	const funcs = {};
-	['playSound', 'stopSounds', 'setVolume'].forEach((funcName) => {
-		funcs[funcName] = function(...args) {
-			document.getElementById(id).contentWindow.postMessage(JSON.stringify([funcName, ...args]), location.origin);
-		};
-	});
-
-	return funcs;
-})();
-
 // Controls the own voice player.
 const VoicePlayer = (() => {
 	const id = `__better_iknow_audio_${Date.now()}__`;
-	document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', `<div style="position: absolute; overflow: hidden; width: 620px; height: 32px; left: 0; right: 0; bottom: 16px; border-radius: 5px; margin: 0 auto; opacity: 0.667;"><audio controls id="${id}" style="width: 100%;"></audio></div>`);
+
+	// Adds a script to replace the behavior of the original sound player.
+	const script = document.createElement('script');
+	script.innerHTML = `
+		document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', '<div style="position: absolute; overflow: hidden; width: 620px; left: 0; right: 0; bottom: 16px; margin: 0 auto; opacity: 0.667; border-radius: 5px; line-height: 0;"><audio controls id="${id}" style="width: 100%; height: 32px; border-radius: 5px;"></audio></div>');
+
+		((playSound) => {
+			$.playSound = function(t, a, n) {
+				const audio = document.getElementById('${id}');
+				if (audio && audio.src === t) {
+					audio.play();
+				} else {
+					playSound.apply(this, arguments);
+				}
+			};
+		})($.playSound);
+
+		((stopSounds) => {
+			$.stopSounds = function() {
+				const audio = document.getElementById('${id}');
+				audio.pause();
+				audio.currentTime = 0;
+
+				stopSounds.apply(this, arguments);
+			};
+		})($.stopSounds);
+	`;
+	document.querySelector('body').appendChild(script);
+
 	const audio = document.getElementById(id);
 
 	return {
