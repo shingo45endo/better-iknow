@@ -138,6 +138,9 @@ const VoicePlayer = (() => {
 		setVolume: (volume) => {
 			audio.volume = volume;
 		},
+		setPlaybackRate: (rate) => {
+			audio.playbackRate = rate;
+		},
 		play: (sec) => {
 			audio.currentTime = sec || 0.0;
 			audio.play();
@@ -152,9 +155,46 @@ const VoicePlayer = (() => {
 		},
 		getDuration: () => {
 			return audio.duration;
+		},
+		getPlaybackRate: () => {
+			return audio.playbackRate;
+		},
+		on: function() {
+			audio.addEventListener(...arguments);
 		}
 	};
 })();
+
+// Adds playback rate change buttons.
+document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', `
+	<div style="position: absolute; width: 620px; left: 0; right: 0; bottom: 60px; margin: 0 auto; line-height: 0;">
+		<ul id="__better_iknow_playrate__" class="choice-set choice-set-expanded" style="width: 155px; float: right;">
+			<li class="choice" data-delta="-0.1"><i type="glyph-triangle-left" class="glyph glyph-triangle-left"></i></li>
+			<li class="choice selected" style="opacity: 0.667; cursor: default;">1.0 x</li>
+			<li class="choice" data-delta="+0.1"><i type="glyph-triangle-right" class="glyph glyph-triangle-right"></i></li>
+		</ul>
+	</div>
+`);
+
+// Handles click events of playback rate change buttons.
+[...document.querySelectorAll('#__better_iknow_playrate__ li[data-delta]')].forEach((elem) => {
+	elem.addEventListener('click', () => {
+		let newRate = Math.round((VoicePlayer.getPlaybackRate() + parseFloat(elem.dataset.delta)) * 100.0) / 100.0;
+		if (newRate < 0.5) {
+			newRate = 0.5;
+		} else if (newRate > 2.0) {
+			newRate = 2.0;
+		}
+		VoicePlayer.setPlaybackRate(newRate);
+	});
+});
+
+// Updates the indicator of the current playback rate.
+['ratechange', 'loadeddata'].forEach((eventName) => {
+	VoicePlayer.on(eventName, () => {
+		document.querySelector('#__better_iknow_playrate__ li.selected').textContent = `${VoicePlayer.getPlaybackRate().toFixed(1)} x`;
+	});
+});
 
 /**
  *	Prepares the internal states for dictation.
@@ -172,6 +212,7 @@ function prepareForDictation() {
 	if (index >= 0) {
 		VoicePlayer.setSource(contents[index].soundUrl);
 	}
+	VoicePlayer.setPlaybackRate(1.0);
 }
 
 /**
