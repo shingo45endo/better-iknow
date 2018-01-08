@@ -14,7 +14,7 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 	// Waits for iframe injection by the embedded script.
 	let iframeObserver = new MutationObserver((records) => {
 		records.filter((record) => (record.type === 'childList')).forEach((record) => {
-			Array.prototype.slice.call(record.addedNodes).filter((addedNode) => (addedNode.id === param.iframeId)).forEach((addedNode) => {
+			[...record.addedNodes].filter((addedNode) => (addedNode.id === param.iframeId)).forEach((addedNode) => {
 				// Stops the observation.
 				iframeObserver.disconnect();
 				iframeObserver = null;
@@ -291,7 +291,7 @@ const displayIncorrect = (() => {
 
 		// Copies all CSS properties as text from the cursor.
 		const styles = getComputedStyle(cursor);
-		const cssText = styles.cssText || Array.prototype.reduce.call(styles, (txt, key) => {return txt + `${key}: ${styles.getPropertyValue(key)}; `;}, '');
+		const cssText = styles.cssText || [...styles].reduce((txt, key) => {return txt + `${key}: ${styles.getPropertyValue(key)}; `;}, '');
 		span.style = cssText;
 
 		// Sets the CSS properties about color.
@@ -470,12 +470,12 @@ function getCurrentSetenceIndex() {
  *	Gets the current sentence in the Dictation app.
  */
 function getCurrentSentence() {
-	return Array.prototype.slice.call(document.querySelectorAll('#dictation_quiz_screen .letter, #dictation_quiz_screen .space')).map(function(e) {return (e.textContent) ? e.textContent : ' ';}).join('');
+	return [...document.querySelectorAll('#dictation_quiz_screen .letter, #dictation_quiz_screen .space')].map(function(e) {return (e.textContent) ? e.textContent : ' ';}).join('');
 }
 
 /**
  *	Returns whether the sentence in the Dictation app has been input or not.
  */
 function isSentenceCompleted() {
-	return !Array.prototype.slice.call(document.querySelectorAll('#dictation_quiz_screen .typeable')).some((span) => !span.textContent);
+	return ![...document.querySelectorAll('#dictation_quiz_screen .typeable')].some((span) => !span.textContent);
 }
