@@ -99,15 +99,27 @@ dialogObserver.observe(document.querySelector('body'), {childList: true});
 const style = document.createElement('style');
 style.type = 'text/css';
 style.textContent = `
-	.settings-modal [type="range"] {
+	.settings-modal input[type="range"] {
 		-webkit-appearance: none;
+		-moz-appearance: none;
 		position: relative;
 		width: 200px;
 		height: 7px;
+		padding: 0;
 		border-radius: 10px;
 		background-color: #eaeaea;
 	}
-	.settings-modal [type="range"]::-webkit-slider-thumb {
+	.settings-modal input[type="range"]:focus {
+		outline: none;
+	}
+	.settings-modal input[type="range"]::before {
+		position: absolute;
+		width: 4em;
+		left: -33px;
+		top: calc((7px - 1em) / 2);
+		content: attr(data-label);
+	}
+	.settings-modal input[type="range"]::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		position: relative;
 		cursor: pointer;
@@ -116,8 +128,8 @@ style.textContent = `
 		width: 15px;
 		height: 15px;
 	}
-	.settings-modal [type="range"]::-moz-range-thumb {
-		-moz-appearance:none;
+	.settings-modal input[type="range"]::-moz-range-thumb {
+		-moz-appearance: none;
 		position: relative;
 		background-color: #ff8b00;
 		border-style: none;
@@ -125,15 +137,8 @@ style.textContent = `
 		width: 15px;
 		height: 15px;
 	}
-	.settings-modal [type="range"]::-moz-range-track {
+	.settings-modal input[type="range"]::-moz-range-track {
 		height: 0;
-	}
-	.settings-modal [type="range"]::before {
-		position: absolute;
-		width: 4em;
-		left: -40px;
-		top: calc((7px - 1em) / 2);
-		content: attr(data-label);
 	}
 `;
 document.getElementsByTagName('head')[0].appendChild(style);
