@@ -58,6 +58,86 @@ const divObserver = new MutationObserver((records) => {
 });
 divObserver.observe(document.getElementById('dictation_recall_screen'), {attributes: true});
 
+// Waits for adding the modal dialog boxes.
+const dialogObserver = new MutationObserver((records) => {
+	records.filter((record) => (record.type === 'childList')).forEach((record) => {
+		Array.prototype.forEach.call(record.addedNodes, (node) => {
+			if (node.querySelector('.settings-modal')) {
+				const id = `__better_iknow_range_playrate_${Date.now()}__`;
+				const playRate = settings.better_iknow.play_rate;
+
+				// Inserts settings item to the settings dialog. (TODO: i18n)
+				node.querySelector('.audio-settings').insertAdjacentHTML('beforeend', `
+					<div class="setting">
+						<h4>Play Speed</h4><!--
+						--><div class="input">
+							<input id="${id}" type="range" value="${playRate}" step="0.1" min="0.5" max="2.0" data-label="${playRate.toFixed(1)} x" style="margin-left: 33px;">
+						</div>
+					</div>
+				`);
+
+				// Handles change event of the range input to display the current playback rate.
+				const range = document.getElementById(id);
+				['change', 'input'].forEach((eventName) => {
+					range.addEventListener(eventName, () => {
+						range.setAttribute('data-label', `${parseFloat(range.value).toFixed(1)} x`);
+					});
+				});
+
+				// Handles click event of Save button to store the change of playback rate into chrome.storage.
+				document.querySelector('.settings-modal .btn.save').addEventListener('click', () => {
+					settings.better_iknow.play_rate = parseFloat(range.value);
+					chrome.storage.local.set(settings.better_iknow, () => {});
+				});
+			}
+		});
+	});
+});
+dialogObserver.observe(document.querySelector('body'), {childList: true});
+
+// Adds style for <input type="range">
+const style = document.createElement('style');
+style.type = 'text/css';
+style.textContent = `
+	.settings-modal [type="range"] {
+		-webkit-appearance: none;
+		position: relative;
+		width: 200px;
+		height: 7px;
+		border-radius: 10px;
+		background-color: #eaeaea;
+	}
+	.settings-modal [type="range"]::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		position: relative;
+		cursor: pointer;
+		background-color: #ff8b00;
+		border-radius: 10px;
+		width: 15px;
+		height: 15px;
+	}
+	.settings-modal [type="range"]::-moz-range-thumb {
+		-moz-appearance:none;
+		position: relative;
+		background-color: #ff8b00;
+		border-style: none;
+		border-radius: 10px;
+		width: 15px;
+		height: 15px;
+	}
+	.settings-modal [type="range"]::-moz-range-track {
+		height: 0;
+	}
+	.settings-modal [type="range"]::before {
+		position: absolute;
+		width: 4em;
+		left: -40px;
+		top: calc((7px - 1em) / 2);
+		content: attr(data-label);
+	}
+`;
+document.getElementsByTagName('head')[0].appendChild(style);
+
 let contents = null;
 let quizzes = [];
 let courses = {};
@@ -66,6 +146,9 @@ let settings = {
 		content_volume: 1.0,
 		effect_volume:  1.0,
 	},
+	better_iknow: {
+		play_rate: 1.0,
+	}
 };
 
 /**
@@ -90,6 +173,12 @@ function XhrHandler(url, text) {
 
 		// Sets the volume of sentences.
 		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
+
+		// Gets the playback rate of sentences from chrome.storage and sets it.
+		chrome.storage.local.get(settings.better_iknow, (items) => {
+			settings.better_iknow = Object.assign(settings.better_iknow || {}, items);
+			VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
+		});
 
 	} else {
 		console.log('WARNING: Unexpected XHR (%s)', url);
@@ -170,7 +259,7 @@ document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend',
 	<div style="position: absolute; width: 620px; left: 0; right: 0; bottom: 60px; margin: 0 auto; line-height: 0;">
 		<ul id="__better_iknow_playrate__" class="choice-set choice-set-expanded" style="width: 155px; float: right;">
 			<li class="choice" data-delta="-0.1"><i type="glyph-triangle-left" class="glyph glyph-triangle-left"></i></li>
-			<li class="choice selected" style="opacity: 0.667; cursor: default;">1.0 x</li>
+			<li class="choice selected" style="opacity: 0.667; cursor: default;">${settings.better_iknow.play_rate} x</li>
 			<li class="choice" data-delta="+0.1"><i type="glyph-triangle-right" class="glyph glyph-triangle-right"></i></li>
 		</ul>
 	</div>
@@ -212,7 +301,7 @@ function prepareForDictation() {
 	if (index >= 0) {
 		VoicePlayer.setSource(contents[index].soundUrl);
 	}
-	VoicePlayer.setPlaybackRate(1.0);
+	VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
 }
 
 /**
