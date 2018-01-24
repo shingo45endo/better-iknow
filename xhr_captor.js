@@ -2,17 +2,17 @@
 	'use strict';
 
 	// Gets parameters from the content script via custom data attributes.
-	const iframeParent = document.currentScript.dataset.iframeParent || 'body';
-	const iframeId     = document.currentScript.dataset.iframeId     || '__xhr_captor__';
-	const matchUrls    = document.currentScript.dataset.matchUrls    || '[".*"]';
+	const matchUrls = document.currentScript.dataset.matchUrls || '[".*"]';
+	const iframeId  = document.currentScript.dataset.iframeId;
+	if (!iframeId) {
+		throw new Error('Invalid data attributes');
+	}
 
-	// Appends an iframe for messaging.
-	const iframe = document.createElement('iframe');
-	iframe.style.width   = '1px';
-	iframe.style.height  = '1px';
-	iframe.style.display = 'none';
-	iframe.id = iframeId;
-	document.querySelector(iframeParent).appendChild(iframe);
+	// Gets the iframe for messaging.
+	const iframe = document.getElementById(iframeId);
+	if (!iframe) {
+		throw new Error('iframe not found');
+	}
 
 	let targetUrls = {};
 
@@ -27,8 +27,7 @@
 		XMLHttpRequest.prototype.open = function(method, url, async) {
 			// If the URL is a target of capturing, memorizes its URL.
 			if (isTargetUrl(url)) {
-				const canonicaliUrl = canonicalizeUrl(url);
-				targetUrls[canonicaliUrl] = true;
+				targetUrls[canonicalizeUrl(url)] = true;
 			}
 
 			// Calls the original function.
@@ -39,11 +38,11 @@
 	((send) => {
 		XMLHttpRequest.prototype.send = function(data) {
 			// If the XHR is a target of capturing, sends its response to the content script via an iframe when the XHR succeeded.
-			this.addEventListener('load', (event) => {
-				const canonicaliUrl = canonicalizeUrl(this.responseURL);
-				if (targetUrls[canonicaliUrl]) {
+			this.addEventListener('load', () => {
+				const canonicalUrl = canonicalizeUrl(this.responseURL);
+				if (targetUrls[canonicalUrl]) {
 					iframe.contentWindow.postMessage(JSON.stringify({
-						url:  canonicaliUrl,
+						url:  canonicalUrl,
 						text: this.responseText,
 					}), location.origin);
 				}

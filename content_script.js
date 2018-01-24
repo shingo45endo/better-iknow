@@ -1,51 +1,81 @@
 'use strict';
 
+let contents = null;
+let quizzes = [];
+let courses = {};
+let settings = {
+	apps: {
+		content_volume: 1.0,
+		effect_volume:  1.0,
+	},
+	better_iknow: {
+		play_rate: 1.0,
+	}
+};
+
 // RegExps for URLs to be captured
 const RE_COURSES  = /\/api\/v2\/goals\/\d+\?/;
 const RE_QUIZZES  = /\/api\/v2\/.*?\/study\?/;
 const RE_SETTINGS = /\/api\/v2\/settings\?/;
 
-// Initialization
-((callback, param) => {
-	if (!param || !param.iframeParent || !param.iframeId || !param.origin || !callback) {
-		throw new Error('Invalid argument');
-	}
+// Prepares for capturing XHR.
+((messageHandler) => {
+	console.assert(messageHandler);
 
-	// Waits for iframe injection by the embedded script.
-	let iframeObserver = new MutationObserver((records) => {
-		records.filter((record) => (record.type === 'childList')).forEach((record) => {
-			[...record.addedNodes].filter((addedNode) => (addedNode.id === param.iframeId)).forEach((addedNode) => {
-				// Stops the observation.
-				iframeObserver.disconnect();
-				iframeObserver = null;
+	// Appends an iframe for messaging.
+	const iframe = document.createElement('iframe');
+	iframe.id = `__better_iknow_messaging_${Date.now()}__`;
+	iframe.style.width   = '1px';
+	iframe.style.height  = '1px';
+	iframe.style.display = 'none';
+	document.querySelector('body').appendChild(iframe);
 
-				// Sets a message event handler.
-				addedNode.contentWindow.addEventListener('message', (event) => {
-					if (event.origin !== param.origin) {
-						return;
-					}
+	// Sets a message event handler.
+	iframe.contentWindow.addEventListener('message', (event) => {
+		if (event.origin !== 'https://iknow.jp') {
+			return;
+		}
 
-					const data = JSON.parse(event.data);
-					callback(data.url, data.text);
-				});
-			});
-		});
+		const data = JSON.parse(event.data);
+		messageHandler(data.url, data.text);
 	});
-	iframeObserver.observe(document.querySelector(param.iframeParent), {childList: true});
 
 	// Appends the script.
 	const script = document.createElement('script');
 	script.src = chrome.extension.getURL('/xhr_captor.js');
-	script.dataset.iframeParent = param.iframeParent;
-	script.dataset.iframeId     = param.iframeId;
-	script.dataset.matchUrls    = param.matchUrls;
+	script.dataset.iframeId  = iframe.id;
+	script.dataset.matchUrls = JSON.stringify([RE_COURSES, RE_QUIZZES, RE_SETTINGS].map((re) => re.source));
 	document.getElementsByTagName('head')[0].appendChild(script);
 
-})(XhrHandler, {
-	iframeParent: 'body',
-	iframeId:     `__better_iknow_messaging_${Date.now()}__`,
-	matchUrls:    JSON.stringify([RE_COURSES, RE_QUIZZES, RE_SETTINGS].map((re) => re.source)),
-	origin:       'https://iknow.jp',
+})((url, text) => {
+	if (RE_QUIZZES.test(url)) {
+		// Stores quiz data.
+		quizzes = JSON.parse(text);
+
+	} else if (RE_COURSES.test(url)) {
+		// Stores course data.
+		const key = url.replace(/\?.*$/, '');
+		courses[key] = JSON.parse(text);
+
+	} else if (RE_SETTINGS.test(url)) {
+		// Updates the settings data.
+		const newSettings = JSON.parse(text);
+		if (newSettings.apps) {
+			settings.apps = Object.assign(settings.apps || {}, newSettings.apps);
+		}
+
+		// Sets the volume of sentences.
+		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
+
+		// Gets the playback rate of sentences from chrome.storage and sets it.
+		chrome.storage.local.get(settings.better_iknow, (items) => {
+			settings.better_iknow = Object.assign(settings.better_iknow || {}, items);
+			VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
+		});
+
+	} else {
+		console.log('WARNING: Unexpected XHR (%s)', url);
+	}
 });
 
 // Waits for displaying the dictation recall screen.
@@ -142,53 +172,6 @@ style.textContent = `
 	}
 `;
 document.getElementsByTagName('head')[0].appendChild(style);
-
-let contents = null;
-let quizzes = [];
-let courses = {};
-let settings = {
-	apps: {
-		content_volume: 1.0,
-		effect_volume:  1.0,
-	},
-	better_iknow: {
-		play_rate: 1.0,
-	}
-};
-
-/**
- *	Handles XHR and stores them.
- */
-function XhrHandler(url, text) {
-	if (RE_QUIZZES.test(url)) {
-		// Stores quiz data.
-		quizzes = JSON.parse(text);
-
-	} else if (RE_COURSES.test(url)) {
-		// Stores course data.
-		const key = url.replace(/\?.*$/, '');
-		courses[key] = JSON.parse(text);
-
-	} else if (RE_SETTINGS.test(url)) {
-		// Updates the settings data.
-		const newSettings = JSON.parse(text);
-		if (newSettings.apps) {
-			settings.apps = Object.assign(settings.apps || {}, newSettings.apps);
-		}
-
-		// Sets the volume of sentences.
-		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
-
-		// Gets the playback rate of sentences from chrome.storage and sets it.
-		chrome.storage.local.get(settings.better_iknow, (items) => {
-			settings.better_iknow = Object.assign(settings.better_iknow || {}, items);
-			VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
-		});
-
-	} else {
-		console.log('WARNING: Unexpected XHR (%s)', url);
-	}
-}
 
 // Controls the own voice player.
 const VoicePlayer = (() => {
