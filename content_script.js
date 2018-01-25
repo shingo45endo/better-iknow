@@ -28,17 +28,19 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 	iframe.style.width   = '1px';
 	iframe.style.height  = '1px';
 	iframe.style.display = 'none';
-	document.querySelector('body').appendChild(iframe);
+	iframe.addEventListener('load', () => {
+		// Sets a message event handler.
+		console.assert(iframe.contentWindow);
+		iframe.contentWindow.addEventListener('message', (event) => {
+			if (event.origin !== 'https://iknow.jp') {
+				return;
+			}
 
-	// Sets a message event handler.
-	iframe.contentWindow.addEventListener('message', (event) => {
-		if (event.origin !== 'https://iknow.jp') {
-			return;
-		}
-
-		const data = JSON.parse(event.data);
-		messageHandler(data.url, data.text);
+			const data = JSON.parse(event.data);
+			messageHandler(data.url, data.text);
+		});
 	});
+	document.querySelector('body').appendChild(iframe);
 
 	// Appends the script.
 	const script = document.createElement('script');
