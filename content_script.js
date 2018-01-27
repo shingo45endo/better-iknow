@@ -182,28 +182,41 @@ const VoicePlayer = (() => {
 	// Adds a script to replace the behavior of the original sound player.
 	const script = document.createElement('script');
 	script.innerHTML = `
-		document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', '<div style="position: absolute; overflow: hidden; width: 620px; left: 0; right: 0; bottom: 16px; margin: 0 auto; opacity: 0.667; border-radius: 5px; line-height: 0;"><audio controls id="${id}" style="width: 100%; height: 32px; border-radius: 5px;"></audio></div>');
+		(() => {
+			'use strict';
 
-		((playSound) => {
-			$.playSound = function(t, a, n) {
-				const audio = document.getElementById('${id}');
-				if (audio && audio.src === t) {
-					audio.play();
-				} else {
-					playSound.apply(this, arguments);
-				}
-			};
-		})($.playSound);
+			document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', '<div style="position: absolute; overflow: hidden; width: 620px; left: 0; right: 0; bottom: 16px; margin: 0 auto; opacity: 0.667; border-radius: 5px; line-height: 0;"><audio controls id="${id}" style="width: 100%; height: 32px; border-radius: 5px;"></audio></div>');
 
-		((stopSounds) => {
-			$.stopSounds = function() {
-				const audio = document.getElementById('${id}');
-				audio.pause();
-				audio.currentTime = 0;
+			let canPause = false;
 
-				stopSounds.apply(this, arguments);
-			};
-		})($.stopSounds);
+			((playSound) => {
+				$.playSound = function(t, a, n) {
+					const audio = document.getElementById('${id}');
+					if (audio && audio.src === t) {
+						canPause = false;
+						audio.play().then(() => {
+							canPause = true;
+						}).catch((error) => {
+							console.log('ERROR: %o', error);
+						});
+					} else {
+						playSound.apply(this, arguments);
+					}
+				};
+			})($.playSound);
+
+			((stopSounds) => {
+				$.stopSounds = function() {
+					const audio = document.getElementById('${id}');
+					if (canPause) {
+						audio.pause();
+					}
+					audio.currentTime = 0;
+
+					stopSounds.apply(this, arguments);
+				};
+			})($.stopSounds);
+		})();
 	`;
 	document.querySelector('body').appendChild(script);
 
@@ -335,12 +348,23 @@ const playIncorrect = (() => {
 	const audio = new Audio('//iknow.jp/_assets/apps/common/spell_incorrect.mp3');
 	audio.load();
 
+	let canPause = false;
+
 	return () => {
-		audio.pause();
+		if (canPause) {
+			audio.pause();
+		}
+
 		if (settings.apps) {
 			audio.volume = settings.apps.effect_volume || 0.0;
 		}
-		audio.play();
+
+		canPause = false;
+		audio.play().then(() => {
+			canPause = true;
+		}).catch((error) => {
+			console.log('ERROR: %o', error);
+		});
 	};
 })();
 
