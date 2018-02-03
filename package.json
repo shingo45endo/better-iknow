@@ -1,0 +1,19 @@
+{
+  "name": "better-iknow",
+  "description": "A Chrome extension to make iKnow dictation app easier to type.",
+  "version": "0.0.1",
+  "author": "shingo45endo",
+  "devDependencies": {
+    "eslint": "^4.17.0"
+  },
+  "homepage": "https://github.com/shingo45endo/better-iknow#readme",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shingo45endo/better-iknow.git"
+  },
+  "scripts": {
+    "lint": "eslint *.js"
+  }
+}
