@@ -2,15 +2,15 @@
 
 let contents = null;
 let quizzes = [];
-let courses = {};
-let settings = {
+const courses = {};
+const settings = {
 	apps: {
 		content_volume: 1.0,
 		effect_volume:  1.0,
 	},
 	better_iknow: {
 		play_rate: 1.0,
-	}
+	},
 };
 
 // RegExps for URLs to be captured
@@ -251,9 +251,9 @@ const VoicePlayer = (() => {
 		getPlaybackRate: () => {
 			return audio.playbackRate;
 		},
-		on: function() {
-			audio.addEventListener(...arguments);
-		}
+		on: (...args) => {
+			audio.addEventListener(...args);
+		},
 	};
 })();
 
@@ -394,7 +394,7 @@ const displayIncorrect = (() => {
 
 		// Copies all CSS properties as text from the cursor.
 		const styles = getComputedStyle(cursor);
-		const cssText = styles.cssText || [...styles].reduce((txt, key) => {return txt + `${key}: ${styles.getPropertyValue(key)}; `;}, '');
+		const cssText = styles.cssText || [...styles].reduce((txt, key) => `${txt}${key}: ${styles.getPropertyValue(key)}; `, '');
 		span.style = cssText;
 
 		// Sets the CSS properties about color.
@@ -423,7 +423,7 @@ const displayIncorrect = (() => {
 window.addEventListener('keydown', (() => {
 	let currentSentence;
 	let currentPos;
-	let sentenceWeights = {};
+	const sentenceWeights = {};
 
 	const keyHandlers = {
 		' ': () => {
@@ -474,7 +474,7 @@ window.addEventListener('keydown', (() => {
 
 		if (!sentenceWeights[currentSentence]) {
 			const weights = currentSentence.split('').map((ch) => {
-				const elem = weightsTable.find((elem) => {return elem.pattern.test(ch);});
+				const elem = weightsTable.find((elem) => elem.pattern.test(ch));
 				return (elem) ? elem.weight : 0.0;
 			});
 
@@ -573,7 +573,7 @@ function getCurrentSetenceIndex() {
  *	Gets the current sentence in the Dictation app.
  */
 function getCurrentSentence() {
-	return [...document.querySelectorAll('#dictation_quiz_screen .letter, #dictation_quiz_screen .space')].map(function(e) {return (e.textContent) ? e.textContent : ' ';}).join('');
+	return [...document.querySelectorAll('#dictation_quiz_screen .letter, #dictation_quiz_screen .space')].map((e) => {return (e.textContent) ? e.textContent : ' ';}).join('');
 }
 
 /**
