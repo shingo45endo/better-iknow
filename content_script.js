@@ -66,13 +66,20 @@ const RE_SETTINGS = /\/api\/v2\/settings\?/;
 			settings.apps = Object.assign(settings.apps || {}, newSettings.apps);
 		}
 
-		// Sets the volume of sentences.
-		VoicePlayer.setVolume((settings.apps) ? (settings.apps.content_volume || 0.0) : 1.0);
-
 		// Gets the playback rate of sentences from chrome.storage and sets it.
-		chrome.storage.local.get(settings.better_iknow, (items) => {
-			settings.better_iknow = Object.assign(settings.better_iknow || {}, items);
-			VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
+		Promise.race([
+			new Promise((resolve, reject) => {
+				chrome.storage.local.get(settings.better_iknow, (items) => {
+					settings.better_iknow = Object.assign(settings.better_iknow || {}, items);
+					resolve();
+				});
+			}),
+			new Promise((resolve, reject) => {
+				setTimeout(resolve, 100);
+			}),
+		]).then(() => {
+			// Sends a custom event to notify changing the settings.
+			window.dispatchEvent(new Event('__better_iknow_settings__'));
 		});
 
 	} else {
@@ -256,6 +263,12 @@ const VoicePlayer = (() => {
 		},
 	};
 })();
+
+// Handles custom event of changing the settings.
+window.addEventListener('__better_iknow_settings__', () => {
+	VoicePlayer.setVolume(settings.apps.content_volume);
+	VoicePlayer.setPlaybackRate(settings.better_iknow.play_rate);
+});
 
 // Adds playback rate change buttons.
 document.querySelector('#dictation_quiz_screen').insertAdjacentHTML('beforeend', `
