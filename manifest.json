@@ -9,7 +9,12 @@
 	"content_scripts": [{
 		"matches": ["https://iknow.jp/apps/*"],
 		"js": [
-			"content_script.js"
+			"base_module.js",
+			"iknow.js",
+			"settings.js",
+			"voice_player.js",
+			"setting_dialog.js",
+			"dictation_screen.js"
 		],
 		"run_at": "document_end"
 	}],

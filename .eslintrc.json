@@ -59,6 +59,7 @@
 				"ignoreEOLComments": true,
 				"exceptions": {
 					"AssignmentExpression": true,
+					"FunctionExpression": true,
 					"ImportDeclaration": true,
 					"ObjectExpression": true,
 					"Property": true,
